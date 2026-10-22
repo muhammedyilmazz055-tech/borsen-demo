@@ -1,0 +1,1160 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{color-scheme:light dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Borşen Etiket Sistemi</title>
+<style>
+/* Layout: sabit üst bant + iki kolon (form | izleme), telefonda tek kolon */
+:root{
+  --bg:#0e1116; --panel:#171b22; --panel2:#1e232c; --line:#2b313c;
+  --fg:#e9edf2; --mut:#929aa6; --faint:#6b7280;
+  --acc:#e8622c;        /* çelik tavlama turuncusu — konuya özgü aksan */
+  --acc-soft:#e8622c22;
+  --ok:#2fb86b; --warn:#e0a92f; --err:#e5484d;
+  --r:12px;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans);
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--panel);z-index:20}
+
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;display:flex;align-items:center;gap:14px;
+  margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px))) 0 calc(-1*max(16px,env(safe-area-inset-right,0px)));
+  padding:12px max(16px,env(safe-area-inset-left,0px));background:var(--panel);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;letter-spacing:.14em;font-size:19px}
+.logo .b{color:var(--acc)}
+.tag{color:var(--mut);font-size:13px}
+.demo-rozet{margin-left:auto;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);
+  border:1px solid var(--warn);border-radius:999px;padding:3px 10px}
+.hatlar{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 4px}
+.hatbtn{padding:7px 15px;border:1px solid var(--line);background:var(--panel);color:var(--mut);
+  border-radius:999px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+.hatbtn.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.hatbtn .no{font-family:var(--mono);opacity:.8;margin-left:6px}
+
+main{max-width:1180px;margin:0 auto;padding-bottom:40px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:820px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0}
+h2{margin:0 0 4px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut)}
+.sub{color:var(--faint);font-size:12px;margin:0 0 14px}
+
+label{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);margin:12px 0 5px}
+input,select{width:100%;padding:10px 11px;background:var(--bg);border:1px solid var(--line);border-radius:9px;
+  color:var(--fg);font-size:14px;font-family:inherit}
+input:focus,select:focus{outline:2px solid var(--acc);outline-offset:-1px;border-color:var(--acc)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:480px){.grid3{grid-template-columns:1fr 1fr}}
+
+.bas{margin-top:18px;width:100%;padding:13px;background:var(--acc);color:#fff;border:0;border-radius:10px;
+  font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em}
+.bas:active{transform:translateY(1px)}
+
+.ozet{display:flex;gap:10px;flex-wrap:wrap}
+.tile{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.tile .n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--fg)}
+.tile .n.acc{color:var(--acc)}
+.tile small{color:var(--mut);display:block;font-size:12px;margin-top:2px}
+
+.search{margin-bottom:12px}
+.tblwrap{overflow:auto;max-height:300px;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mut);font-weight:600;position:sticky;top:0;background:var(--panel2);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:#ffffff08}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-family:var(--mono);
+  background:var(--acc-soft);color:var(--acc);font-weight:600}
+
+/* etiket önizleme — gerçek Borşen etiketine birebir yakın */
+.onizleme{margin-top:14px}
+.etiket{background:#fff;color:#111;border-radius:4px;padding:0;font-family:Arial,sans-serif;
+  box-shadow:0 8px 30px #0008;border:2px solid #111;overflow:hidden;max-width:420px}
+.etiket .ebas{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:2px solid #111}
+.etiket .ebas .lg{font-weight:800;font-size:18px;letter-spacing:.02em;color:#1a4a8a}
+.etiket .ebas .lg small{display:block;font-size:7px;letter-spacing:.08em;color:#333;font-weight:600}
+.etiket .ebas .eno{margin-left:auto;font-weight:800;font-size:14px;font-family:var(--mono)}
+.etiket .egrid{display:grid;grid-template-columns:1fr 1fr}
+.etiket .ec{border-right:1px solid #111;border-bottom:1px solid #111;padding:5px 8px;min-width:0}
+.etiket .ec:nth-child(2n){border-right:0}
+.etiket .ec.full{grid-column:1/3;border-right:0}
+.etiket .ec .k{font-size:7.5px;color:#444;text-transform:uppercase;letter-spacing:.02em;line-height:1.2}
+.etiket .ec .v{font-size:13px;font-weight:800;color:#111;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.etiket .ec.full .v{font-size:16px}
+.etiket .ebar{padding:7px 10px;display:flex;align-items:center;gap:10px}
+.etiket .ebar .bc{flex:1;height:34px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 4px,#111 4px 5px,#fff 5px 8px)}
+.etiket .ebar .logos{font-size:8px;font-weight:800;color:#333;text-align:right;line-height:1.3}
+.etiket .efoot{font-size:7px;color:#555;padding:0 10px 7px;line-height:1.3}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,16px);padding:12px 20px;border-radius:12px;
+  font-weight:700;opacity:0;pointer-events:none;transition:.28s;z-index:50;box-shadow:0 10px 40px #0009}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.ok{background:var(--ok);color:#042616}
+.toast.err{background:var(--err);color:#fff}
+.foot{max-width:1180px;margin:0 auto;padding:16px 0 30px;color:var(--faint);font-size:12px;line-height:1.7}
+.foot code{font-family:var(--mono);color:var(--mut)}
+.zpl{margin-top:12px}
+.zpl summary{cursor:pointer;color:var(--mut);font-size:12px}
+.zpl pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;
+  font-family:var(--mono);font-size:11px;color:var(--mut);max-height:180px}
+
+/* depo/stok/sevkiyat sekmeleri ve taşıma */
+.durumtabs{display:flex;gap:6px;margin-bottom:12px}
+.dtab{flex:1;padding:8px 6px;border:1px solid var(--line);background:var(--panel2);color:var(--mut);
+  border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;text-align:center}
+.dtab.on{color:#fff;border-color:transparent}
+.dtab[data-d="DEPO"].on{background:#3b6fb8} .dtab[data-d="STOK"].on{background:#8a6d2f} .dtab[data-d="SEVKIYAT"].on{background:var(--ok)}
+.dtab .c{display:block;font-family:var(--mono);font-size:16px;font-weight:800;margin-top:2px}
+.tasima{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;min-height:34px}
+.tasima .sec{color:var(--mut);font-size:12px;margin-right:auto}
+.mv{padding:8px 14px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);border-radius:8px;
+  cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+.mv:disabled{opacity:.35;cursor:not-allowed}
+.mv.go{background:var(--acc);border-color:var(--acc);color:#fff}
+td.chk{text-align:center}
+
+/* üst görünüm sekmeleri */
+.nav{display:flex;flex-wrap:wrap;gap:6px;max-width:1180px;margin:16px auto 0;padding:0}
+.navbtn{padding:10px 20px;border:1px solid var(--line);background:var(--panel);color:var(--mut);
+  border-radius:10px 10px 0 0;cursor:pointer;font-size:14px;font-weight:700;font-family:inherit;border-bottom:0}
+.navbtn.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.navbadge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--err);color:#fff;font-size:11px;font-weight:800;margin-left:4px}
+/* kalite karar rozeti */
+.verdict{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;font-weight:800;font-size:16px;margin-top:4px}
+.verdict.ok{background:#2fb86b22;color:var(--ok);border:1px solid var(--ok)}
+.verdict.red{background:#e5484d22;color:var(--err);border:1px solid var(--err)}
+.verdict.bek{background:#e0a92f22;color:var(--warn);border:1px solid var(--warn)}
+.kok{color:var(--ok);font-weight:800} .kred{color:var(--err);font-weight:800}
+.band{font-size:12px;color:var(--mut);margin-top:6px}
+
+/* giriş / departman ekranı */
+.login{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;
+  padding:max(16px,env(safe-area-inset-left,0px))}
+.login .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 24px;max-width:360px;width:100%;box-shadow:0 20px 60px #000a}
+.login h1{margin:0;font-size:22px;letter-spacing:.12em} .login h1 .b{color:var(--acc)}
+.login .s{color:var(--mut);font-size:13px;margin:4px 0 18px}
+.login .hint{font-size:11px;color:var(--faint);margin-top:12px;line-height:1.5}
+.rolbar{margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
+.rolbar b{color:var(--fg)}
+.rolbar button{padding:4px 10px;border:1px solid var(--line);background:var(--panel2);color:var(--mut);border-radius:7px;cursor:pointer;font-size:12px;font-family:inherit}
+
+/* raporlar — saf CSS çubuklar */
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar{display:grid;grid-template-columns:140px 1fr 56px;align-items:center;gap:10px}
+.bar .lbl{font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .track{background:var(--panel2);border-radius:6px;height:22px;overflow:hidden}
+.bar .fill{height:100%;background:var(--acc);border-radius:6px;min-width:2px;transition:width .3s}
+.bar .fill.ok{background:var(--ok)} .bar .fill.red{background:var(--err)} .bar .fill.depo{background:#3b6fb8} .bar .fill.stok{background:#8a6d2f} .bar .fill.sevk{background:var(--ok)}
+.bar .val{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;font-size:13px}
+.daybars{display:flex;gap:8px;align-items:flex-end;height:150px;padding-top:10px}
+.daybars .d{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;height:100%}
+.daybars .db{width:100%;background:var(--acc);border-radius:5px 5px 0 0;min-height:2px}
+.daybars .dn{font-size:11px;font-weight:700;font-family:var(--mono)}
+.daybars .dd{font-size:10px;color:var(--mut)}
+
+/* yönetim CRUD */
+.crud{margin-bottom:18px}
+.crud h3{font-size:13px;margin:0 0 8px;color:var(--fg)}
+.crud .addrow{display:flex;gap:8px;margin-bottom:8px}
+.crud .addrow input{flex:1}
+.crud .addrow button{padding:0 16px;background:var(--acc);color:#fff;border:0;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit}
+.crud ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.crud li{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px;font-size:13px}
+.crud li button{border:0;background:transparent;color:var(--err);cursor:pointer;font-size:15px;line-height:1;padding:0 4px;font-weight:700}
+</style>
+</head>
+<body>
+
+
+<div class="login" id="login">
+  <div class="box">
+    <h1><span class="b">BORŞEN</span> ÜRETİM</h1>
+    <div class="s">Departman girişi</div>
+    <label>Departman</label>
+    <select id="lg_rol"></select>
+    <label>Şifre</label>
+    <input id="lg_sifre" type="password" placeholder="••••">
+    <button class="bas" id="lg_giris" style="margin-top:16px">Giriş</button>
+    <div class="hint" id="lg_hint"></div>
+  </div>
+</div>
+
+<header>
+  <span class="logo"><span class="b">BORŞEN</span> ÜRETİM</span>
+  <span class="tag">Etiket · Kalite · İzlenebilirlik</span>
+  <span class="rolbar" id="rolbar" hidden>👤 <b id="rol_ad"></b> <button id="lg_cikis">Çıkış</button></span>
+  <span class="demo-rozet">Demo</span>
+</header>
+
+<div class="nav">
+  <button class="navbtn" data-v="isemri">İş Emri</button>
+  <button class="navbtn on" data-v="etiket">Etiket Basma</button>
+  <button class="navbtn" data-v="cikis">Üretim Çıkış <span id="nav_bekleyen" class="navbadge" hidden></span></button>
+  <button class="navbtn" data-v="kalite">Kalite Kontrol</button>
+  <button class="navbtn" data-v="rapor">Raporlar</button>
+  <button class="navbtn" data-v="yonetim">Yönetim</button>
+</div>
+
+<div id="view-etiket">
+<div class="hatlar" id="hatlar"></div>
+
+<main>
+  <section class="card">
+    <h2>Yeni Etiket</h2>
+    <p class="sub">Alanları doldur, <b>Etiket Bas</b>'a bas. Sıra numarası otomatik ve çakışmasız verilir.</p>
+
+    <div class="grid3">
+      <div><label>Ölçü (çap x et)</label><input id="olcu" value="76,1x2,00"></div>
+      <div><label>Kalite</label><input id="kalite" value="304/304L"></div>
+      <div><label>Standart</label><select id="standart"></select></div>
+    </div>
+    <div class="grid3">
+      <div><label>Boy (adet)</label><input id="boy" type="number" value="27"></div>
+      <div><label>Birim Uz. (mm)</label><input id="birim_uzunluk" type="number" value="6000"></div>
+      <div><label>Muhtelif (m)</label><input id="muhtelif" type="number" value="0"></div>
+    </div>
+    <div class="grid3">
+      <div><label>Operatör</label><select id="operator"></select></div>
+      <div><label>Kaliteci / Kontrol</label><select id="kaliteci"></select></div>
+      <div><label>Heat No (Döküm)</label><input id="heat_no" value="A0601174"></div>
+    </div>
+    <div class="grid3">
+      <div><label>Paket Sayısı</label><input id="paket_sayisi" type="number" value="1"></div>
+      <div><label>Paket No</label><input id="paket_no" type="number" value="89"></div>
+      <div><label>Kopya Adedi</label><input id="adet" type="number" value="1"></div>
+    </div>
+    <div class="grid3">
+      <div><label>Üretim No</label><input id="uretim_no" value="20262689"></div>
+      <div><label>Ağırlık (kg)</label><input id="agirlik" type="number" placeholder="otomatik"></div>
+      <div><label>Firma / Müşteri</label><input id="firma" value="STOK"></div>
+    </div>
+    <div class="grid3">
+      <div><label>Isıl İşlem</label><select id="isil"><option>TAVSIZ</option><option>TAVLI</option></select></div>
+      <div><label>Yüzey Kalitesi</label><select id="yuzey"><option>FIRÇALI</option><option>PICKLED</option></select></div>
+      <div><label>İç Çapak Temizliği</label><select id="capak"><option>YOK</option><option>VAR</option></select></div>
+    </div>
+
+    <button class="bas" id="bas">Etiket Bas</button>
+
+    <div class="onizleme">
+      <h2 style="margin-bottom:8px">Canlı Etiket Önizleme</h2>
+      <div class="etiket" id="etiket">
+        <div class="ebas">
+          <div class="lg">BORŞEN<small>BORU SANAYİ VE TİCARET A.Ş.</small></div>
+          <div class="eno"><span id="e_tarih">—</span> · <span id="e_no">KL000001</span></div>
+        </div>
+        <div class="egrid">
+          <div class="ec full"><div class="k">Boru/Profil Ölçüsü · Pipe Size (mm)</div><div class="v" id="e_olcu">76,1x2,00x6000mm</div></div>
+          <div class="ec"><div class="k">Boy (Adet) · Quantity</div><div class="v" id="e_boy">27</div></div>
+          <div class="ec"><div class="k">Kalite · Material Quality</div><div class="v" id="e_kal">304/304L</div></div>
+          <div class="ec"><div class="k">Toplam Uzunluk · Length (m)</div><div class="v" id="e_uzunluk">162.0</div></div>
+          <div class="ec"><div class="k">Toplam Ağırlık · Weight (kg)</div><div class="v" id="e_agirlik">581</div></div>
+          <div class="ec"><div class="k">Döküm No · Heat No</div><div class="v" id="e_heat">A0601174</div></div>
+          <div class="ec"><div class="k">Üretim No · Production No</div><div class="v" id="e_uretimno">20262689</div></div>
+          <div class="ec"><div class="k">Isıl İşlem · Annealing</div><div class="v" id="e_isil">TAVSIZ</div></div>
+          <div class="ec"><div class="k">Yüzey · Surface Quality</div><div class="v" id="e_yuzey">FIRÇALI</div></div>
+          <div class="ec"><div class="k">İç Çapak · Inside Bead</div><div class="v" id="e_capak">YOK</div></div>
+          <div class="ec"><div class="k">Kaynak · Welding</div><div class="v" id="e_kaynak">LAZER</div></div>
+          <div class="ec"><div class="k">Standart · Standard</div><div class="v" id="e_std">EN 10217-7</div></div>
+          <div class="ec"><div class="k">Müşteri · Customer</div><div class="v" id="e_firma">STOK</div></div>
+        </div>
+        <div class="ebar">
+          <div style="flex:1"><div class="bc"></div><div style="font-size:9px;letter-spacing:.1em;margin-top:2px" id="e_barkod">KL000001</div></div>
+          <div class="logos">KIWA<br>TÜV AUSTRIA</div>
+        </div>
+        <div class="efoot">Dudullu OSB 3. Cadde No:20 Y.Dudullu - Ümraniye / İstanbul · borsenboru.com</div>
+      </div>
+      <details class="zpl"><summary>Yazıcıya gidecek ZPL kodunu göster (Zebra · TCP 9100)</summary><pre id="zpl"></pre></details>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:18px">
+    <div class="card">
+      <h2>Özet</h2>
+      <p class="sub">Tüm hatlarda bugüne kadar üretilen</p>
+      <div class="ozet" id="ozet"></div>
+    </div>
+    <div class="card">
+      <h2>Depo &middot; Stok &middot; Sevkiyat</h2>
+      <p class="sub">Her kayıt depodan stoğa, stoktan sevkiyata ilerler. Satır seç, alttan taşı.</p>
+      <div class="durumtabs" id="durumtabs"></div>
+      <input class="search" id="q" placeholder="Etiket no, firma, heat, ölçü ara…">
+      <div class="tblwrap">
+        <table>
+          <thead id="depothead"></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="tasima" id="tasima"></div>
+      <div id="sevkpanel" hidden style="margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel2)">
+        <div style="font-weight:700;margin-bottom:8px">Sevkiyat Bilgileri</div>
+        <div class="grid2">
+          <div><label>İrsaliye No</label><input id="s_irsaliye"></div>
+          <div><label>Sevk Tarihi</label><input id="s_tarih" type="date"></div>
+        </div>
+        <div class="grid2">
+          <div><label>Araç / Plaka</label><input id="s_plaka" placeholder="34 ABC 123"></div>
+          <div><label>Teslim Alan</label><input id="s_teslim" placeholder="müşteri / nakliyeci"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="mv go" id="s_onayla">Onayla ve Sevk Et →</button>
+          <button class="mv" id="s_iptal">Vazgeç</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+</div><!-- /view-etiket -->
+
+<div id="view-cikis" hidden>
+<main style="grid-template-columns:1fr">
+  <section class="card">
+    <h2>Üretim Çıkış — Kalite Onayı</h2>
+    <p class="sub">Etiket basılan her paket otomatik buraya düşer. Kaliteci kontrol edip onaylar. (Excel'deki <code>[BoruTakip.xlsm]DepoTakip!</code> çapraz-dosya formülü yok — aynı veritabanı.)</p>
+    <div class="ozet" id="c_ozet" style="margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <input class="search" id="c_q" placeholder="Etiket, firma, heat ara…" style="flex:1;margin:0;min-width:180px">
+      <select id="c_sorumlu" style="width:auto"></select>
+      <button class="mv" id="c_okall">Seçilileri OK</button>
+    </div>
+    <div class="tblwrap" style="max-height:440px">
+      <table>
+        <thead><tr>
+          <th style="width:28px"><input type="checkbox" id="c_chkall"></th>
+          <th>Etiket</th><th>Açıklama</th><th>Ölçü</th><th>Boy</th><th>Metre</th><th>Firma</th><th>Heat</th><th>Onay</th>
+        </tr></thead>
+        <tbody id="c_tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+</div><!-- /view-cikis -->
+
+<div id="view-kalite" hidden>
+<main>
+  <section class="card">
+    <h2>Kalite Ölçümü (Proses Kontrol)</h2>
+    <p class="sub">Kaliteci imalatta girer. Çap tolerans bandında mı diye <b>anında</b> karar verir — defter + Excel'e ikinci giriş gerekmez.</p>
+
+    <div class="grid3">
+      <div><label>İş Emri No</label><input id="k_isemri" value="20262691"></div>
+      <div><label>Heat No</label><input id="k_heat" value="UZ267937"></div>
+      <div><label>Saat</label><input id="k_saat" placeholder="18:10"></div>
+    </div>
+    <div class="grid3">
+      <div><label>Standart</label><select id="k_standart"></select></div>
+      <div><label>Kalite</label><input id="k_kalite" value="304/304L"></div>
+      <div><label>Hat</label><select id="k_hat"></select></div>
+    </div>
+    <div class="grid2">
+      <div><label>Standart Ölçü (nominal çap)</label><input id="k_nom" type="number" value="76.1" step="0.01"></div>
+      <div><label>Et Kalınlığı</label><input id="k_et" type="number" value="2.0" step="0.01"></div>
+    </div>
+
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:14px">
+      <label style="margin-top:0">Tolerans Bandı (kabul aralığı)</label>
+      <div class="grid2">
+        <div><input id="k_tol_min" type="number" step="0.01" placeholder="alt sınır (103.22)" value="103.22"></div>
+        <div><input id="k_tol_max" type="number" step="0.01" placeholder="üst sınır (104.78)" value="104.78"></div>
+      </div>
+      <div class="band" id="k_tolinfo" style="margin-top:4px"></div>
+      <label>A–B Çap (ölçülen min / max)</label>
+      <div class="grid2">
+        <div><input id="k_ab_min" type="number" step="0.01" placeholder="min" value="75.85"></div>
+        <div><input id="k_ab_max" type="number" step="0.01" placeholder="max" value="75.95"></div>
+      </div>
+      <label>C–D Çap (ölçülen min / max)</label>
+      <div class="grid2">
+        <div><input id="k_cd_min" type="number" step="0.01" placeholder="min" value="76.27"></div>
+        <div><input id="k_cd_max" type="number" step="0.01" placeholder="max" value="76.45"></div>
+      </div>
+      <div class="band" id="k_karar_canli"></div>
+    </div>
+
+    <div class="grid2">
+      <div><label>Vardiya (operatör)</label><input id="k_vardiya" value="Yunus Emre Yılmaz - Serkan Gençyurt"></div>
+      <div><label>Kalite Sorumlusu</label><select id="k_sorumlu"></select></div>
+    </div>
+    <button class="bas" id="k_kaydet">Ölçümü Kaydet</button>
+  </section>
+
+  <section style="display:grid;gap:18px">
+    <div class="card">
+      <h2>Kalite Özeti</h2>
+      <p class="sub">BorsenLOG üst köşesindeki istatistik — otomatik</p>
+      <div class="ozet" id="k_ozet"></div>
+    </div>
+    <div class="card">
+      <h2>Son Ölçümler</h2>
+      <input class="search" id="k_q" placeholder="İş emri no / heat ara…">
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>İş Emri</th><th>Saat</th><th>A–B Çap</th><th>C–D Çap</th><th>Tolerans</th><th>Sonuç</th></tr></thead>
+          <tbody id="k_tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+</div><!-- /view-kalite -->
+
+<div id="view-rapor" hidden>
+<main style="grid-template-columns:1fr">
+  <section class="card">
+    <h2>Genel Durum</h2>
+    <p class="sub">Tüm hatlar · canlı</p>
+    <div class="ozet" id="r_tiles"></div>
+  </section>
+  <section class="card">
+    <h2>Hat Bazında Üretim (adet)</h2>
+    <div id="r_hat" class="bars"></div>
+  </section>
+  <section class="card">
+    <h2>Depo Durumu Dağılımı</h2>
+    <div id="r_durum" class="bars"></div>
+  </section>
+  <section class="card">
+    <h2>Kalite Sonuçları</h2>
+    <div id="r_kalite" class="bars"></div>
+  </section>
+  <section class="card">
+    <h2>Son 7 Gün Üretim (etiket adedi)</h2>
+    <div id="r_gun" class="daybars"></div>
+  </section>
+</main>
+</div><!-- /view-rapor -->
+
+<div id="view-yonetim" hidden>
+<main>
+  <section class="card">
+    <h2>Listeler</h2>
+    <p class="sub">Operatör, kaliteci, standart, firma listelerini buradan yönet. Formlar bunlardan beslenir.</p>
+    <div id="y_operator" class="crud"></div>
+    <div id="y_kaliteci" class="crud"></div>
+  </section>
+  <section class="card">
+    <h2>&nbsp;</h2>
+    <div id="y_standart" class="crud"></div>
+    <div id="y_firma" class="crud"></div>
+  </section>
+</main>
+</div><!-- /view-yonetim -->
+
+<div id="view-isemri" hidden>
+<main>
+  <section class="card">
+    <h2>İş Emri Oluştur (Mühendis)</h2>
+    <p class="sub">Üretim kodu + spec + müşteri dağıtımı. Tolerans sınıfından band otomatik çıkar; iş emri üretimin başlangıcıdır.</p>
+    <div class="grid3">
+      <div><label>Üretim Kodu (İş Emri No)</label><input id="ie_kod" placeholder="20262698"></div>
+      <div><label>Standart</label><select id="ie_standart"></select></div>
+      <div><label>Kalite</label><input id="ie_kalite" value="304/304L"></div>
+    </div>
+    <div class="grid3">
+      <div><label>Ölçü (çap x et)</label><input id="ie_olcu" value="76,1x2,00"></div>
+      <div><label>Çap Sınıfı</label><select id="ie_capsinif"><option>D3</option><option>D4</option></select></div>
+      <div><label>Hat Hızı</label><input id="ie_hathizi" type="number" value="5"></div>
+    </div>
+    <div class="grid3">
+      <div><label>Isıl İşlem</label><select id="ie_isil"><option>YOK</option><option>VAR</option></select></div>
+      <div><label>İç Çapak</label><select id="ie_iccapak"><option>YOK</option><option>VAR</option></select></div>
+      <div><label>Dış Çapak</label><select id="ie_discapak"><option>VAR</option><option>YOK</option></select></div>
+    </div>
+    <div class="band" id="ie_tolinfo" style="margin:4px 0"></div>
+
+    <h2 style="margin-top:16px">Müşteri Dağıtımı (Kime)</h2>
+    <div id="ie_musteriler"></div>
+    <button class="mv" id="ie_satirekle" style="margin-top:8px">+ Müşteri satırı</button>
+
+    <button class="bas" id="ie_olustur">İş Emri Oluştur</button>
+
+    <h2 style="margin-top:20px">İş Emirleri</h2>
+    <div class="tblwrap" style="max-height:240px">
+      <table>
+        <thead><tr><th>Üretim Kodu</th><th>Ölçü</th><th>Kalite</th><th>Sınıf</th><th>Müşteriler</th><th>Durum</th></tr></thead>
+        <tbody id="ie_tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Hammadde Stok (Ambar / Bobin)</h2>
+    <p class="sub">Gelen bobinler. İş emrine çıkıldıkça stoktan düşer.</p>
+    <div class="grid3">
+      <div><label>Bobin No</label><input id="bb_no" placeholder="933"></div>
+      <div><label>Döküm/Heat</label><input id="bb_dokum" placeholder="SE24567"></div>
+      <div><label>Tedarikçi</label><input id="bb_tedarikci" placeholder="Posco"></div>
+    </div>
+    <div class="grid3">
+      <div><label>Standart</label><select id="bb_standart"></select></div>
+      <div><label>Kalite</label><input id="bb_kalite" value="304L"></div>
+      <div><label>Ölçü</label><input id="bb_olcu" placeholder="38x1,20"></div>
+    </div>
+    <div class="grid3">
+      <div><label>Et Kalınlığı</label><input id="bb_et" type="number" step="0.01" placeholder="1.20"></div>
+      <div><label>Ağırlık (kg)</label><input id="bb_agirlik" type="number" placeholder="1870"></div>
+      <div><label>Sac Fiyatı (EUR)</label><input id="bb_fiyat" type="number" step="0.01" placeholder="2.34"></div>
+    </div>
+    <button class="bas" id="bb_ekle">Bobin Ekle</button>
+    <div class="ozet" id="bb_ozet" style="margin-top:14px"></div>
+    <div class="tblwrap" style="max-height:260px;margin-top:10px">
+      <table>
+        <thead><tr><th>Bobin</th><th>Ölçü</th><th>Kalite</th><th>Tedarikçi</th><th>Döküm</th><th>Ağırlık</th><th>Durum</th></tr></thead>
+        <tbody id="bb_tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+</div><!-- /view-isemri -->
+
+<div class="foot">
+  <b>Bu bir demodur.</b> Veriler yalnızca bu tarayıcıda, bu bilgisayarda tutulur (test amaçlı).
+  Gerçek sistemde her şey merkezi bir <code>PostgreSQL</code> veritabanında olur; 2–3 PC aynı anda bağlanır,
+  sıra numaraları sunucuda atomik üretilir (çakışma imkânsız) ve etiket doğrudan Zebra yazıcıya
+  <code>TCP 9100</code> portundan gönderilir — Excel'e hiç gerek kalmaz.
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- Lookup verisi (gerçek sistemde /lookups ucundan gelir; Excel'deki isimler) ----
+const DATA = {
+  hatlar: [
+    {kod:"KUCUKLAZER", ad:"Küçük Lazer", prefix:"KL"},
+    {kod:"LAZER",      ad:"Lazer",       prefix:"L"},
+    {kod:"TIG",        ad:"TIG",         prefix:"T"},
+  ],
+  operatorler:["Emrah","Uğur","Can","Serkan G","Yunus Emre","Galip","İlkay","Tarık","Muhammmed","Emre","Coşkun","Onur","Halil","Onur Şensoy"],
+  kaliteciler:["Sadullah","Yakup","Murat"],
+  standartlar:["EN 10217-7","EN 10357","ASTM A249","ASTM A269","ASTM A312","ASTM A778","BS 4825-1"],
+  firmalar:["STOK","NEUMO","TRASTEEL","SUPER","SUPRIR"],
+};
+
+const LS = "borsen_demo_v1";
+function store(){ try{return JSON.parse(localStorage.getItem(LS))||{}}catch(e){return {}} }
+function save(s){ try{localStorage.setItem(LS,JSON.stringify(s))}catch(e){} }
+let state = store();
+state.sayac = state.sayac || {};      // hat_kod -> son numara
+state.kayitlar = state.kayitlar || []; // {etiket_no, hat, musteri, stok, metraj, tarih}
+
+let HAT = "KUCUKLAZER";
+const $ = id=>document.getElementById(id);
+function val(id){return $(id).value}
+function hatOf(k){return DATA.hatlar.find(h=>h.kod===k)}
+
+function toast(msg,ok=true){const t=$("toast");t.textContent=msg;t.className="toast show "+(ok?"ok":"err");setTimeout(()=>t.className="toast",2600)}
+
+// ---- Atomik sıra no (gerçek sistemde DB'de next_sira() yapar) ----
+function sonNo(k){return state.sayac[k]||0}
+function formatNo(k,n){return hatOf(k).prefix + String(n).padStart(6,"0")}
+
+// Toplam uzunluk (m) = Boy × (Birim uzunluk mm / 1000) [+ Muhtelif]  — gerçek etiketle doğrulandı (27×6000/1000=162)
+function metrajHesapla(){
+  const boy=parseFloat(val("boy")), bu=parseFloat(val("birim_uzunluk")), m=parseFloat(val("muhtelif"))||0;
+  if(isNaN(boy)||isNaN(bu)) return null;
+  return Math.round((boy*(bu/1000)+m)*1000)/1000;
+}
+
+// Ölçüden çap(OD) ve et(t) ayıkla: "76,1x2,00" -> {od:76.1, t:2.0}
+function olcuParse(){
+  const s=(val("olcu")||"").replace(/,/g,".");
+  const m=s.match(/([\d.]+)\s*[xX*]\s*([\d.]+)/);
+  if(!m) return null;
+  return {od:parseFloat(m[1]), t:parseFloat(m[2])};
+}
+// Ağırlık TAHMİNİ (kesin formül/tablo şirketten gelince değişecek). Elle giriş varsa o kullanılır.
+function agirlikHesapla(metraj){
+  const elle=parseFloat(val("agirlik"));
+  if(!isNaN(elle)&&elle>0) return elle;
+  const o=olcuParse();
+  if(!o||metraj==null) return null;
+  // Borşen hesaplayıcısıyla birebir: π×(DışÇap−Et)×Et×8.0/1000 ×Metraj (304 paslanmaz, ρ=8.0)
+  const A=Math.PI*(o.od-o.t)*o.t;          // kesit alanı mm²
+  const kgPerM=A*8.0/1000;
+  return Math.round(kgPerM*metraj*100)/100;
+}
+
+function olcuFull(){
+  const o=olcuParse(), bu=val("birim_uzunluk");
+  if(!o) return (val("olcu")||"—");
+  return `${val("olcu")}x${bu}mm`;
+}
+
+function zplUret(d){
+  // Gerçek Borşen etiketine göre düzenlenmiş ZPL (Zebra). Sahada çıktı alıp koordinatları ince ayarlarız.
+  return `^XA
+^CI28^PW800^LL600
+^FO30,25^A0N,46,46^FDBORSEN BORU SAN. TIC. A.S.^FS
+^FO560,25^A0N,30,30^FD${d.tarih}^FS
+^FO560,60^A0N,34,34^FD${d.no}^FS
+^FO30,90^GB740,2,2^FS
+^FO30,105^A0N,24,24^FDOlcu/Size: ${d.olcu}^FS
+^FO30,145^A0N,24,24^FDBoy/Qty: ${d.boy}^FS
+^FO400,145^A0N,24,24^FDKalite: ${d.kal}^FS
+^FO30,185^A0N,24,24^FDToplam Uz.: ${d.uzunluk} m^FS
+^FO400,185^A0N,24,24^FDAgirlik: ${d.agirlik} kg^FS
+^FO30,225^A0N,24,24^FDDokum/Heat: ${d.heat}^FS
+^FO400,225^A0N,24,24^FDUretim No: ${d.uretimno}^FS
+^FO30,265^A0N,24,24^FDIsil Islem: ${d.isil}^FS
+^FO400,265^A0N,24,24^FDYuzey: ${d.yuzey}^FS
+^FO30,305^A0N,24,24^FDIc Capak: ${d.capak}^FS
+^FO400,305^A0N,24,24^FDKaynak: ${d.kaynak}^FS
+^FO30,345^A0N,24,24^FDStandart: ${d.std}^FS
+^FO400,345^A0N,24,24^FDMusteri: ${d.firma}^FS
+^FO30,400^BY2^BCN,90,Y,N,N^FD${d.no}^FS
+^FO30,520^A0N,18,18^FDborsenboru.com  -  KIWA / TUV AUSTRIA^FS
+^XZ`;
+}
+
+function bugun(){const d=new Date();return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear()}
+
+function onizlemeGuncelle(){
+  const next = formatNo(HAT, sonNo(HAT)+1);
+  const metraj = metrajHesapla();
+  const agirlik = agirlikHesapla(metraj);
+  const kaynak = {KUCUKLAZER:"LAZER",LAZER:"LAZER",TIG:"TIG"}[HAT]||hatOf(HAT).ad;
+  $("e_no").textContent = next;
+  $("e_tarih").textContent = bugun();
+  $("e_olcu").textContent = olcuFull();
+  $("e_boy").textContent = val("boy")||"—";
+  $("e_kal").textContent = val("kalite")||"—";
+  $("e_uzunluk").textContent = metraj??"—";
+  $("e_agirlik").textContent = agirlik??"—";
+  $("e_heat").textContent = val("heat_no")||"—";
+  $("e_uretimno").textContent = val("uretim_no")||"—";
+  $("e_isil").textContent = val("isil");
+  $("e_yuzey").textContent = val("yuzey");
+  $("e_capak").textContent = val("capak");
+  $("e_kaynak").textContent = kaynak;
+  $("e_std").textContent = val("standart")||"—";
+  $("e_firma").textContent = val("firma")||"—";
+  $("e_barkod").textContent = next;
+  $("zpl").textContent = zplUret({
+    no:next,tarih:bugun(),olcu:olcuFull(),boy:val("boy"),kal:val("kalite"),uzunluk:metraj??"",
+    agirlik:agirlik??"",heat:val("heat_no"),uretimno:val("uretim_no"),isil:val("isil"),
+    yuzey:val("yuzey"),capak:val("capak"),kaynak:kaynak,std:val("standart"),firma:val("firma")});
+}
+
+function hatlariCiz(){
+  $("hatlar").innerHTML = DATA.hatlar.map(h=>
+    `<button class="hatbtn${h.kod===HAT?' on':''}" data-k="${h.kod}">${h.ad}<span class="no">${formatNo(h.kod,sonNo(h.kod))}</span></button>`).join("");
+  $("hatlar").querySelectorAll(".hatbtn").forEach(b=>b.onclick=()=>{HAT=b.dataset.k;hatlariCiz();onizlemeGuncelle();});
+}
+
+function fill(id,arr){$(id).innerHTML=arr.map(x=>`<option>${x}</option>`).join("")}
+
+$("bas").onclick=()=>{
+  const metraj=metrajHesapla();
+  const agirlik=agirlikHesapla(metraj);
+  const n = sonNo(HAT)+1;
+  state.sayac[HAT]=n;                        // atomik artış
+  const no=formatNo(HAT,n);
+  const adet=Math.max(1,parseInt(val("adet"))||1);
+  state.kayitlar.unshift({
+    id: (state.seq=(state.seq||0)+1), durum:"DEPO", onay:"BEKLEMEDE",
+    etiket_no:no, hat:hatOf(HAT).ad, hat_kod:HAT, firma:val("firma"),
+    olcu:val("olcu"), boy:val("boy"), metraj, agirlik, heat:val("heat_no"),
+    aciklama:uretimAciklama(), tarih:bugun()
+  });
+  save(state);
+  hatlariCiz(); onizlemeGuncelle(); tabloCiz(); ozetCiz(); navBadge();
+  toast(`Basıldı: ${no}${adet>1?" ×"+adet:""}  →  yazıcıya gönderildi · kalite onayına düştü`);
+};
+
+let qt;
+$("q").oninput=()=>{clearTimeout(qt);qt=setTimeout(tabloCiz,180)};
+
+// durum akışı: DEPO -> STOK -> SEVKIYAT (ve geri)
+const DURUMLAR=[{d:"DEPO",ad:"Depo"},{d:"STOK",ad:"Stok"},{d:"SEVKIYAT",ad:"Sevkiyat"}];
+const GECIS={DEPO:["STOK"],STOK:["DEPO","SEVKIYAT"],SEVKIYAT:["STOK"]};
+const DURUM_AD={DEPO:"Depo",STOK:"Stok",SEVKIYAT:"Sevkiyat"};
+let DURUM="DEPO";
+let secili=new Set();
+
+function durumTabsCiz(){
+  $("durumtabs").innerHTML = DURUMLAR.map(x=>{
+    const c=state.kayitlar.filter(r=>r.durum===x.d).length;
+    return `<button class="dtab${x.d===DURUM?' on':''}" data-d="${x.d}">${x.ad}<span class="c">${c}</span></button>`;
+  }).join("");
+  $("durumtabs").querySelectorAll(".dtab").forEach(b=>b.onclick=()=>{DURUM=b.dataset.d;secili.clear();durumTabsCiz();tabloCiz();});
+}
+
+function filtrele(){
+  const q=($("q").value||"").toLowerCase();
+  return state.kayitlar.filter(r=>(r.durum||"DEPO")===DURUM &&
+    (!q || r.etiket_no.toLowerCase().includes(q) || (r.firma||"").toLowerCase().includes(q)
+        || (r.heat||"").toLowerCase().includes(q) || (r.olcu||"").toLowerCase().includes(q)));
+}
+
+function tabloCiz(){
+  const rows=filtrele();
+  const sevk = DURUM==="SEVKIYAT";
+  const basliklar = sevk
+    ? ["Etiket","Firma","İrsaliye","Plaka","Teslim","Sevk T."]
+    : ["Etiket","Firma","Ölçü","Heat No","Ağırlık","Tarih"];
+  $("depothead").innerHTML = `<tr><th style="width:28px"><input type="checkbox" id="chkall"></th>`+
+    basliklar.map(h=>`<th>${h}</th>`).join("")+`</tr>`;
+  $("tbody").innerHTML = rows.slice(0,100).map(r=>{
+    const hucreler = sevk
+      ? [`${r.firma||""}`,`<span class="num">${r.irsaliye||""}</span>`,`<span class="num">${r.plaka||""}</span>`,`${r.teslim||""}`,`<span class="num">${r.sevk_tarihi||""}</span>`]
+      : [`${r.firma||""}`,`<span class="num">${r.olcu||""}</span>`,`<span class="num">${r.heat||""}</span>`,`<span class="num">${r.agirlik??""}</span>`,`<span class="num">${r.tarih}</span>`];
+    return `<tr><td class="chk"><input type="checkbox" class="rowchk" data-id="${r.id}" ${secili.has(r.id)?"checked":""}></td>`+
+      `<td><span class="pill">${r.etiket_no}</span></td>`+hucreler.map(h=>`<td>${h}</td>`).join("")+`</tr>`;
+  }).join("") || `<tr><td colspan="7" style="color:var(--faint);padding:16px">Bu durumda kayıt yok.</td></tr>`;
+  $("tbody").querySelectorAll(".rowchk").forEach(c=>c.onchange=()=>{
+    const id=+c.dataset.id; c.checked?secili.add(id):secili.delete(id); tasimaCiz();
+  });
+  $("chkall").onchange=e=>{ secili.clear(); if(e.target.checked) filtrele().forEach(r=>secili.add(r.id)); tabloCiz(); };
+  tasimaCiz();
+}
+
+function tasimaCiz(){
+  const hedefler=GECIS[DURUM]||[];
+  const n=secili.size;
+  $("tasima").innerHTML =
+    `<span class="sec">${n} kayıt seçili</span>` +
+    hedefler.map(h=>`<button class="mv${h==='SEVKIYAT'||h==='STOK'&&DURUM==='DEPO'?' go':''}" data-h="${h}" ${n?'':'disabled'}>${DURUM_AD[h]}'a taşı →</button>`).join("");
+  $("tasima").querySelectorAll(".mv").forEach(b=>b.onclick=()=>tasi(b.dataset.h));
+}
+
+function tasi(hedef){
+  if(!GECIS[DURUM].includes(hedef)){toast("Bu geçiş kapalı",false);return;}
+  if(!secili.size){toast("Önce kayıt seç",false);return;}
+  if(hedef==="SEVKIYAT"){            // sevkiyat bilgisi iste
+    $("s_tarih").value = new Date().toISOString().slice(0,10);
+    $("sevkpanel").hidden=false;
+    $("sevkpanel").scrollIntoView({behavior:"smooth",block:"nearest"});
+    return;
+  }
+  uygula(hedef);
+}
+
+function uygula(hedef, sevk){
+  let k=0;
+  state.kayitlar.forEach(r=>{ if(secili.has(r.id)&&(r.durum||"DEPO")===DURUM){
+    r.durum=hedef;
+    if(sevk){r.irsaliye=sevk.irsaliye;r.sevk_tarihi=sevk.tarih;r.plaka=sevk.plaka;r.teslim=sevk.teslim;}
+    k++;
+  }});
+  save(state); secili.clear(); $("sevkpanel").hidden=true;
+  durumTabsCiz(); tabloCiz(); ozetCiz();
+  toast(`${k} kayıt ${DURUM_AD[hedef]}'a taşındı`);
+}
+
+$("s_onayla").onclick=()=>uygula("SEVKIYAT",{
+  irsaliye:val("s_irsaliye"),tarih:val("s_tarih"),plaka:val("s_plaka"),teslim:val("s_teslim")});
+$("s_iptal").onclick=()=>{$("sevkpanel").hidden=true;};
+
+function ozetCiz(){
+  $("ozet").innerHTML = DATA.hatlar.map(h=>{
+    const rs=state.kayitlar.filter(r=>r.hat_kod===h.kod);
+    const met=rs.reduce((a,r)=>a+(r.metraj||0),0);
+    return `<div class="tile"><div class="n acc">${rs.length}</div><small>${h.ad}</small><div class="n" style="font-size:15px;margin-top:6px">${met.toFixed(0)} m</div><small>toplam metraj</small></div>`;
+  }).join("");
+}
+
+// form değişince canlı önizleme
+["olcu","kalite","standart","boy","birim_uzunluk","muhtelif","heat_no","uretim_no","agirlik",
+ "firma","isil","yuzey","capak"].forEach(id=>{
+  $(id).addEventListener("input",onizlemeGuncelle);
+  $(id).addEventListener("change",onizlemeGuncelle);
+});
+
+// eski kayıt uyumluluğu (id/durum yoksa ekle)
+state.seq = state.seq || 0;
+state.kayitlar.forEach(r=>{ if(!r.id) r.id=(state.seq=state.seq+1); if(!r.durum) r.durum="DEPO"; if(!r.onay) r.onay="OK"; });
+save(state);
+
+// ================== KALİTE KONTROL MODÜLÜ ==================
+state.olcumler = state.olcumler || [];
+
+// üst görünüm geçişi
+const VIEWS=["etiket","isemri","cikis","kalite","rapor","yonetim"];
+document.querySelectorAll(".navbtn").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".navbtn").forEach(x=>x.classList.toggle("on",x===b));
+  const v=b.dataset.v;
+  VIEWS.forEach(x=>document.getElementById("view-"+x).hidden = x!==v);
+  if(v==="isemri"){ bobinTablo(); ieTablo(); ieTolinfo(); }
+  if(v==="cikis") cikisCiz();
+  if(v==="rapor") raporCiz();
+  if(v==="yonetim") yonetimCiz();
+});
+
+// ---- departman / rol girişi (demo) ----
+const ROLLER = {
+  "Yönetici":                 {tabs:["isemri","etiket","cikis","kalite","rapor","yonetim"], sifre:"admin"},
+  "Mühendis (Planlama)":      {tabs:["isemri","rapor"],   sifre:"1234"},
+  "Operatör (İmalat / Depo)": {tabs:["etiket"],           sifre:"1234"},
+  "Kalite":                   {tabs:["cikis","kalite"],   sifre:"1234"},
+};
+function rolHint(){ const r=$("lg_rol").value; $("lg_hint").textContent=
+  `Demo şifresi: ${ROLLER[r].sifre}  ·  Gerçek sistemde her kullanıcının kendi şifresi olur ve sunucuda doğrulanır.`; }
+function girisYap(rol){
+  if(!ROLLER[rol]) rol="Yönetici";
+  try{ state.rol=rol; save(state); }catch(e){}
+  // önce giriş ekranını kapat (ne olursa olsun)
+  $("login").hidden=true; $("rolbar").hidden=false; $("rol_ad").textContent=rol;
+  const izin=ROLLER[rol].tabs, v=izin[0];
+  document.querySelectorAll(".navbtn").forEach(b=>{
+    b.hidden=!izin.includes(b.dataset.v);
+    b.classList.toggle("on", b.dataset.v===v);
+  });
+  VIEWS.forEach(x=>{ const el=document.getElementById("view-"+x); if(el) el.hidden = x!==v; });
+  try{
+    if(v==="isemri"){ bobinTablo(); ieTablo(); ieTolinfo(); }
+    if(v==="cikis") cikisCiz();
+    if(v==="rapor") raporCiz();
+    if(v==="yonetim") yonetimCiz();
+  }catch(e){}
+}
+$("lg_rol").onchange=rolHint;
+function girisDene(){
+  const r=$("lg_rol").value;
+  const girilen=($("lg_sifre").value||"").trim();
+  const dogru=((ROLLER[r]&&ROLLER[r].sifre)||"");
+  if(girilen!==dogru){
+    $("lg_hint").innerHTML='<span style="color:var(--err)">Şifre yanlış. '+r+' için demo şifresi: '+dogru+'</span>';
+    return;
+  }
+  girisYap(r);
+}
+$("lg_giris").onclick=girisDene;
+$("lg_sifre").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); girisDene(); } });
+$("lg_cikis").onclick=()=>{ state.rol=null; save(state); $("rolbar").hidden=true; $("lg_sifre").value=""; $("login").hidden=false; };
+
+// tolerans kontrolü (backend'deki tolerans_kontrol ile aynı mantık)
+function toleransKontrol(o){
+  if(o.tol_min==null||o.tol_max==null||isNaN(o.tol_min)||isNaN(o.tol_max))
+    return {aciklama:"TOLERANS GİRİLMEDİ",sonuc:"BEKLEMEDE"};
+  const d=[o.ab_min,o.ab_max,o.cd_min,o.cd_max].filter(x=>x!=null&&!isNaN(x));
+  if(!d.length) return {aciklama:"ÖLÇÜM GİRİLMEDİ",sonuc:"BEKLEMEDE"};
+  const dis=d.filter(x=>x<o.tol_min||x>o.tol_max);
+  return dis.length ? {aciklama:"HEDEF ÇAP TOLERANS DIŞI",sonuc:"RED"}
+                    : {aciklama:"UYGUNDUR",sonuc:"OK"};
+}
+
+function kOku(){
+  return {
+    tol_min:parseFloat(val("k_tol_min")), tol_max:parseFloat(val("k_tol_max")),
+    ab_min:parseFloat(val("k_ab_min")), ab_max:parseFloat(val("k_ab_max")),
+    cd_min:parseFloat(val("k_cd_min")), cd_max:parseFloat(val("k_cd_max")),
+  };
+}
+
+function kCanli(){
+  const r=toleransKontrol(kOku());
+  const cls=r.sonuc==="OK"?"ok":r.sonuc==="RED"?"red":"bek";
+  $("k_karar_canli").innerHTML=`<span class="verdict ${cls}">${r.sonuc==="OK"?"✓":r.sonuc==="RED"?"✕":"•"} ${r.aciklama}</span>`;
+}
+
+["k_tol_min","k_tol_max","k_ab_min","k_ab_max","k_cd_min","k_cd_max"].forEach(id=>
+  $(id).addEventListener("input",kCanli));
+
+// Norm bazlı tolerans kuralları (TOLERANS sayfasından). ASTM A249 doğrulandı;
+// diğer normlar tam Toleranslar sayfası gelince eklenecek.
+// Tolerans kuralları — TOLERANS sayfasından (nominal 25.4/3/6000 ile birebir doğrulandı).
+// Çap: EN normları EN ISO 1127 D-sınıfı (%); ASTM/BS sabit mm (asimetrik −alt/+ust).
+// Et: norm bazında yüzde (asimetrik [−alt%, +ust%]). Boy: norm bazında sabit mm [−alt, +ust].
+const D_SINIF = {D3:0.75, D4:0.5};  // EN ISO 1127 çap sınıfı, %
+const NORM_TOL = {
+  "EN 10217-7": {capD:"D3",        et:[10,10],    boy:[0,5]},  // D3/T3 (iş emri 20262691)
+  "EN 10357":   {capD:"D4",        et:[10,10],    boy:[0,5]},  // 25.4 → ±0.13 = D4
+  "ASTM A249":  {cap:[0.15,0.15],  et:[10,10],    boy:[0,3]},
+  "ASTM A269":  {cap:[0.13,0.13],  et:[10,10],    boy:[0,3]},
+  "ASTM A312":  {cap:[0.80,0.40],  et:[12.5,20],  boy:[0,6]},
+  "ASTM A778":  {cap:[0.80,0.40],  et:[12.5,12.5],boy:[0,6]},
+  "BS 4825-1":  {cap:[0.13,0.13],  et:[12.5,12.5],boy:[0,3]},
+};
+function capBandi(t,nom){
+  if(t.capD){ const d=D_SINIF[t.capD]; return [nom*(1-d/100), nom*(1+d/100)]; }
+  return [nom - t.cap[0], nom + t.cap[1]];   // asimetrik: [−alt, +ust]
+}
+function toleransHesapla(){
+  const norm=val("k_standart"), nom=parseFloat(val("k_nom")), et=parseFloat(val("k_et"));
+  const t=NORM_TOL[norm], info=$("k_tolinfo");
+  if(!t){ info.textContent="⚠ Bu norm için tolerans kuralı tanımlı değil — bandı elle girin."; kCanli(); return; }
+  if(isNaN(nom)){ info.textContent=`${norm} seçili — nominal çapı girince band otomatik hesaplanır.`; return; }
+  const [cmin,cmax]=capBandi(t,nom);
+  $("k_tol_min").value=cmin.toFixed(2); $("k_tol_max").value=cmax.toFixed(2);
+  const sinif = t.capD ? ` (${t.capD})` : "";
+  let etinfo="";
+  if(!isNaN(et)){
+    const emin=et*(1-t.et[0]/100), emax=et*(1+t.et[1]/100);
+    etinfo=` · Et: ${emin.toFixed(2)}–${emax.toFixed(2)} mm`;
+  }
+  info.textContent=`${norm}${sinif}: Çap ${cmin.toFixed(2)}–${cmax.toFixed(2)} mm${etinfo} · Boy −${t.boy[0]}/+${t.boy[1]} mm`;
+  kCanli();
+}
+["k_standart","k_nom","k_et"].forEach(id=>{
+  $(id).addEventListener("change",toleransHesapla); $(id).addEventListener("input",toleransHesapla);
+});
+
+$("k_kaydet").onclick=()=>{
+  const o=kOku();
+  if(!val("k_isemri")){toast("İş Emri No gerekli",false);return;}
+  const r=toleransKontrol(o);
+  state.olcumler.unshift({
+    is_emri:val("k_isemri"), heat:val("k_heat"), saat:val("k_saat")||"—",
+    standart:val("k_standart"), kalite:val("k_kalite"), hat:val("k_hat"),
+    ab:`${isNaN(o.ab_min)?"":o.ab_min}-${isNaN(o.ab_max)?"":o.ab_max}`,
+    cd:`${isNaN(o.cd_min)?"":o.cd_min}-${isNaN(o.cd_max)?"":o.cd_max}`,
+    tol:`${isNaN(o.tol_min)?"":o.tol_min}-${isNaN(o.tol_max)?"":o.tol_max}`,
+    vardiya:val("k_vardiya"), sorumlu:val("k_sorumlu"),
+    aciklama:r.aciklama, sonuc:r.sonuc, tarih:bugun()
+  });
+  save(state); kTablo(); kOzet();
+  toast(`Ölçüm kaydedildi — ${r.aciklama}`, r.sonuc!=="RED");
+};
+
+let kqt;
+$("k_q").oninput=()=>{clearTimeout(kqt);kqt=setTimeout(kTablo,180)};
+
+function kTablo(){
+  const q=($("k_q").value||"").toLowerCase();
+  const rows=state.olcumler.filter(r=>!q||(r.is_emri||"").toLowerCase().includes(q)||(r.heat||"").toLowerCase().includes(q));
+  $("k_tbody").innerHTML=rows.slice(0,100).map(r=>{
+    const c=r.sonuc==="OK"?"kok":r.sonuc==="RED"?"kred":"";
+    const et=r.sonuc==="OK"?"UYGUN":r.sonuc==="RED"?"TOL. DIŞI":"BEKLEMEDE";
+    return `<tr><td><span class="pill">${r.is_emri}</span></td><td class="num">${r.saat}</td>`+
+      `<td class="num">${r.ab}</td><td class="num">${r.cd}</td><td class="num">${r.tol}</td>`+
+      `<td class="${c}">${et}</td></tr>`;
+  }).join("") || `<tr><td colspan="6" style="color:var(--faint);padding:16px">Henüz ölçüm yok.</td></tr>`;
+}
+
+function kOzet(){
+  const ok=state.olcumler.filter(r=>r.sonuc==="OK").length;
+  const red=state.olcumler.filter(r=>r.sonuc==="RED").length;
+  const karar=ok+red;
+  const yuzde=karar?((red*100/karar).toFixed(1)):"0.0";
+  $("k_ozet").innerHTML=
+    `<div class="tile"><div class="n" style="color:var(--ok)">${ok}</div><small>Uygun</small></div>`+
+    `<div class="tile"><div class="n" style="color:var(--err)">${red}</div><small>Tolerans Dışı</small></div>`+
+    `<div class="tile"><div class="n acc">${yuzde}%</div><small>Tolerans dışı oranı</small></div>`;
+}
+
+// ================== DİNAMİK LİSTELER (Yönetim'den düzenlenir) ==================
+state.lookups = state.lookups || {};
+const LK = state.lookups;
+LK.standartlar = LK.standartlar || [...DATA.standartlar];
+LK.operatorler = LK.operatorler || [...DATA.operatorler];
+LK.kaliteciler = LK.kaliteciler || [...DATA.kaliteciler];
+LK.firmalar    = LK.firmalar    || [...DATA.firmalar];
+save(state);
+
+function refreshLookups(){
+  fill("standart",LK.standartlar); fill("operator",LK.operatorler); fill("kaliteci",LK.kaliteciler);
+  fill("k_standart",LK.standartlar); fill("k_sorumlu",LK.kaliteciler); fill("c_sorumlu",LK.kaliteciler);
+  fill("ie_standart",LK.standartlar); fill("bb_standart",LK.standartlar);
+  let dl=$("firmalist");
+  if(!dl){dl=document.createElement("datalist");dl.id="firmalist";document.body.appendChild(dl);$("firma").setAttribute("list","firmalist");}
+  dl.innerHTML=LK.firmalar.map(f=>`<option value="${f}">`).join("");
+}
+
+// ================== RAPORLAR ==================
+function tile(n,l){return `<div class="tile"><div class="n acc">${n}</div><small>${l}</small></div>`;}
+function barList(arr){
+  const max=Math.max(1,...arr.map(a=>a.val));
+  return arr.map(a=>`<div class="bar"><span class="lbl">${a.lbl}</span><div class="track"><div class="fill ${a.cls||''}" style="width:${a.val/max*100}%"></div></div><span class="val">${a.val}</span></div>`).join("")
+    || `<div style="color:var(--faint);font-size:13px">Veri yok</div>`;
+}
+function raporCiz(){
+  const K=state.kayitlar;
+  const metraj=K.reduce((a,r)=>a+(r.metraj||0),0);
+  const agirlik=K.reduce((a,r)=>a+(r.agirlik||0),0);
+  const bugunAdet=K.filter(r=>r.tarih===bugun()).length;
+  $("r_tiles").innerHTML=tile(K.length,"Toplam Etiket")+tile(Math.round(metraj)+" m","Toplam Metraj")+
+    tile(Math.round(agirlik)+" kg","Toplam Ağırlık")+tile(bugunAdet,"Bugün Üretilen");
+  $("r_hat").innerHTML=barList(DATA.hatlar.map(h=>({lbl:h.ad,val:K.filter(r=>r.hat_kod===h.kod).length})));
+  $("r_durum").innerHTML=barList([["DEPO","depo","Depo"],["STOK","stok","Stok"],["SEVKIYAT","sevk","Sevkiyat"]]
+    .map(([d,c,ad])=>({lbl:ad,cls:c,val:K.filter(r=>(r.durum||"DEPO")===d).length})));
+  const ok=state.olcumler.filter(r=>r.sonuc==="OK").length, red=state.olcumler.filter(r=>r.sonuc==="RED").length;
+  $("r_kalite").innerHTML=barList([{lbl:"Uygun",cls:"ok",val:ok},{lbl:"Tolerans Dışı",cls:"red",val:red}]);
+  // son 7 gün
+  const days=[]; for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d);}
+  const fmt=d=>String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();
+  const dd=d=>String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0");
+  const counts=days.map(d=>K.filter(r=>r.tarih===fmt(d)).length);
+  const mx=Math.max(1,...counts);
+  $("r_gun").innerHTML=days.map((d,i)=>`<div class="d"><div class="dn">${counts[i]}</div><div class="db" style="height:${counts[i]/mx*100}%"></div><div class="dd">${dd(d)}</div></div>`).join("");
+}
+
+// ================== YÖNETİM (CRUD) ==================
+function crud(elId,baslik,key){
+  const el=$(elId);
+  el.innerHTML=`<h3>${baslik}</h3>
+    <div class="addrow"><input placeholder="Yeni ekle…" id="${elId}_in"><button id="${elId}_add">Ekle</button></div>
+    <ul>${LK[key].map((x,i)=>`<li>${x}<button data-i="${i}" title="sil">×</button></li>`).join("")}</ul>`;
+  const ekle=()=>{
+    const v=($(elId+"_in").value||"").trim(); if(!v)return;
+    if(!LK[key].includes(v)) LK[key].push(v);
+    save(state); refreshLookups(); yonetimCiz(); toast(v+" eklendi");
+  };
+  $(elId+"_add").onclick=ekle;
+  $(elId+"_in").addEventListener("keydown",e=>{if(e.key==="Enter")ekle();});
+  el.querySelectorAll("li button").forEach(b=>b.onclick=()=>{
+    LK[key].splice(+b.dataset.i,1); save(state); refreshLookups(); yonetimCiz(); toast("Silindi");
+  });
+}
+function yonetimCiz(){
+  crud("y_operator","Operatörler","operatorler");
+  crud("y_kaliteci","Kaliteciler","kaliteciler");
+  crud("y_standart","Standartlar","standartlar");
+  crud("y_firma","Firmalar / Müşteriler","firmalar");
+}
+
+// ================== ÜRETİM ÇIKIŞ / KALİTE ONAYI ==================
+function uretimAciklama(){
+  const o=olcuParse(); let olcu=val("olcu");
+  if(o) olcu=`${o.od.toFixed(2)} x ${o.t.toFixed(2)}`;
+  return `${olcu} mm ${val("standart")||""}  AISI ${val("kalite")||""} Dikişli Boru`.trim();
+}
+let cSecili=new Set();
+function cBekleyenler(){
+  const q=(val("c_q")||"").toLowerCase();
+  return state.kayitlar.filter(r=>(r.onay||"BEKLEMEDE")==="BEKLEMEDE" &&
+    (!q||r.etiket_no.toLowerCase().includes(q)||(r.firma||"").toLowerCase().includes(q)||(r.heat||"").toLowerCase().includes(q)));
+}
+function navBadge(){
+  const n=state.kayitlar.filter(r=>(r.onay||"BEKLEMEDE")==="BEKLEMEDE").length;
+  const b=$("nav_bekleyen"); b.textContent=n; b.hidden=n===0;
+}
+function onayVer(ids,karar){
+  const sorumlu=val("c_sorumlu");
+  let k=0; state.kayitlar.forEach(r=>{if(ids.includes(r.id)&&(r.onay||"BEKLEMEDE")==="BEKLEMEDE"){r.onay=karar;r.onaylayan=sorumlu;k++;}});
+  save(state); cSecili.clear(); cikisCiz();
+  toast(`${k} paket ${karar==="OK"?"onaylandı ✓":"reddedildi ✕"}`, karar==="OK");
+}
+function cikisCiz(){
+  const bek=cBekleyenler();
+  const okSay=state.kayitlar.filter(r=>r.onay==="OK").length;
+  const redSay=state.kayitlar.filter(r=>r.onay==="RED").length;
+  $("c_ozet").innerHTML=
+    `<div class="tile"><div class="n" style="color:var(--warn)">${bek.length}</div><small>Onay Bekliyor</small></div>`+
+    `<div class="tile"><div class="n" style="color:var(--ok)">${okSay}</div><small>Onaylandı (OK)</small></div>`+
+    `<div class="tile"><div class="n" style="color:var(--err)">${redSay}</div><small>Reddedildi</small></div>`;
+  $("c_tbody").innerHTML=bek.slice(0,150).map(r=>
+    `<tr><td class="chk"><input type="checkbox" class="crow" data-id="${r.id}" ${cSecili.has(r.id)?"checked":""}></td>`+
+    `<td><span class="pill">${r.etiket_no}</span></td><td style="font-size:12px">${r.aciklama||""}</td>`+
+    `<td class="num">${r.olcu||""}</td><td class="num">${r.boy||""}</td><td class="num">${r.metraj??""}</td>`+
+    `<td>${r.firma||""}</td><td class="num">${r.heat||""}</td>`+
+    `<td style="white-space:nowrap"><button class="mv go" data-ok="${r.id}" style="padding:4px 10px">OK</button> `+
+    `<button class="mv" data-red="${r.id}" style="padding:4px 8px;color:var(--err)">RED</button></td></tr>`
+  ).join("") || `<tr><td colspan="9" style="color:var(--faint);padding:16px">Onay bekleyen paket yok — hepsi kontrol edildi. ✓</td></tr>`;
+  $("c_tbody").querySelectorAll(".crow").forEach(c=>c.onchange=()=>{const id=+c.dataset.id;c.checked?cSecili.add(id):cSecili.delete(id);});
+  $("c_tbody").querySelectorAll("[data-ok]").forEach(b=>b.onclick=()=>onayVer([+b.dataset.ok],"OK"));
+  $("c_tbody").querySelectorAll("[data-red]").forEach(b=>b.onclick=()=>onayVer([+b.dataset.red],"RED"));
+  navBadge();
+}
+$("c_chkall").onchange=e=>{cSecili.clear(); if(e.target.checked) cBekleyenler().forEach(r=>cSecili.add(r.id)); cikisCiz();};
+$("c_okall").onclick=()=>{ if(!cSecili.size){toast("Önce paket seç",false);return;} onayVer([...cSecili],"OK"); };
+$("c_q").oninput=()=>cikisCiz();
+
+// kalite hat listesi (sabit)
+$("k_hat").innerHTML=DATA.hatlar.map(h=>`<option value="${h.kod}">${h.ad}</option>`).join("");
+
+// ================== İŞ EMRİ + HAMMADDE (BOBİN) ==================
+state.bobinler = state.bobinler || [];
+state.isemirleri = state.isemirleri || [];
+
+function olcuCapEt(s){
+  const m=(s||"").replace(/,/g,".").match(/([\d.]+)\s*[xX*]\s*([\d.]+)/);
+  return m?{od:parseFloat(m[1]),t:parseFloat(m[2])}:null;
+}
+function ieSatirCiz(rows){
+  $("ie_musteriler").innerHTML = rows.map((r,idx)=>
+    `<div class="grid3" style="margin-bottom:6px" data-row="${idx}">
+      <div><input class="ie_m" placeholder="Müşteri (NEUMO)" value="${r.m||''}"></div>
+      <div><input class="ie_b" type="number" placeholder="Boy" value="${r.b||''}"></div>
+      <div style="display:flex;gap:6px"><input class="ie_mt" type="number" placeholder="Metre" value="${r.mt||''}" style="flex:1"><button class="mv ie_sil" data-i="${idx}" style="padding:0 10px">×</button></div>
+    </div>`).join("");
+  $("ie_musteriler").querySelectorAll(".ie_sil").forEach(btn=>btn.onclick=()=>{const rs=ieOku();rs.splice(+btn.dataset.i,1);ieSatirCiz(rs.length?rs:[{}]);});
+  $("ie_musteriler").querySelectorAll(".ie_b").forEach(inp=>inp.oninput=()=>{
+    const row=inp.closest("[data-row]"), b=parseFloat(inp.value), mt=row.querySelector(".ie_mt");
+    if(!isNaN(b)&&!mt.dataset.elle) mt.value=(b*6).toFixed(0);  // metre = boy × 6m
+  });
+  $("ie_musteriler").querySelectorAll(".ie_mt").forEach(inp=>inp.oninput=()=>{inp.dataset.elle="1";});
+}
+function ieOku(){
+  return [...$("ie_musteriler").querySelectorAll("[data-row]")].map(d=>({
+    m:d.querySelector(".ie_m").value, b:d.querySelector(".ie_b").value, mt:d.querySelector(".ie_mt").value}));
+}
+$("ie_satirekle").onclick=()=>{const rs=ieOku();rs.push({});ieSatirCiz(rs);};
+
+function ieTolinfo(){
+  const norm=val("ie_standart"), o=olcuCapEt(val("ie_olcu")), sinif=val("ie_capsinif");
+  const t=NORM_TOL[norm], info=$("ie_tolinfo");
+  if(!t){ info.textContent="⚠ Bu norm için tolerans kuralı tanımlı değil."; return; }
+  if(!o){ info.textContent="Ölçü girilince tolerans bandı görünür."; return; }
+  let cmin,cmax,etkisi;
+  if(t.capD){ const d=D_SINIF[sinif]||D_SINIF[t.capD]; cmin=o.od*(1-d/100); cmax=o.od*(1+d/100); etkisi=`${sinif} ±%${d}`; }
+  else { cmin=o.od-t.cap[0]; cmax=o.od+t.cap[1]; etkisi="sabit"; }
+  const emin=o.t*(1-t.et[0]/100), emax=o.t*(1+t.et[1]/100);
+  info.textContent=`${norm} (çap ${etkisi}): Çap ${cmin.toFixed(2)}–${cmax.toFixed(2)} · Et ${emin.toFixed(2)}–${emax.toFixed(2)} · Boy −${t.boy[0]}/+${t.boy[1]} mm`;
+}
+["ie_standart","ie_olcu","ie_capsinif"].forEach(id=>{$(id).addEventListener("input",ieTolinfo);$(id).addEventListener("change",ieTolinfo);});
+
+$("ie_olustur").onclick=()=>{
+  const kod=(val("ie_kod")||"").trim();
+  if(!kod){toast("Üretim Kodu gerekli",false);return;}
+  if(state.isemirleri.some(x=>x.kod===kod)){toast("Bu iş emri zaten var",false);return;}
+  const musteriler=ieOku().filter(r=>r.m).map(r=>({m:r.m,b:+r.b||null,mt:+r.mt||null}));
+  state.isemirleri.unshift({
+    kod, standart:val("ie_standart"), kalite:val("ie_kalite"), olcu:val("ie_olcu"),
+    capsinif:val("ie_capsinif"), hathizi:val("ie_hathizi"), isil:val("ie_isil"),
+    iccapak:val("ie_iccapak"), discapak:val("ie_discapak"), musteriler, durum:"PLANLANDI", tarih:bugun()
+  });
+  save(state); ieTablo(); ieSatirCiz([{},{}]);
+  toast("İş emri oluşturuldu: "+kod); $("ie_kod").value="";
+};
+function ieTablo(){
+  $("ie_tbody").innerHTML = state.isemirleri.slice(0,100).map(r=>{
+    const ms=(r.musteriler||[]).map(m=>`${m.m}${m.mt?" ("+m.mt+"m)":""}`).join(", ")||"—";
+    return `<tr><td><span class="pill">${r.kod}</span></td><td class="num">${r.olcu||""}</td><td>${r.kalite||""}</td>`+
+      `<td class="num">${r.capsinif||""}/T3</td><td style="font-size:12px">${ms}</td><td>${r.durum||"PLANLANDI"}</td></tr>`;
+  }).join("") || `<tr><td colspan="6" style="color:var(--faint);padding:16px">Henüz iş emri yok.</td></tr>`;
+}
+
+$("bb_ekle").onclick=()=>{
+  if(!val("bb_no") && !val("bb_dokum")){toast("Bobin no veya döküm girin",false);return;}
+  state.bobinler.unshift({
+    no:val("bb_no"), dokum:val("bb_dokum"), tedarikci:val("bb_tedarikci"), standart:val("bb_standart"),
+    kalite:val("bb_kalite"), olcu:val("bb_olcu"), et:val("bb_et"), agirlik:+val("bb_agirlik")||0,
+    fiyat:val("bb_fiyat"), durum:"STOKTA"
+  });
+  save(state); bobinTablo(); toast("Bobin eklendi");
+  ["bb_no","bb_dokum","bb_agirlik"].forEach(id=>$(id).value="");
+};
+function bobinTablo(){
+  $("bb_tbody").innerHTML = state.bobinler.slice(0,100).map(b=>
+    `<tr><td class="num">${b.no||""}</td><td class="num">${b.olcu||""}</td><td>${b.kalite||""}</td><td>${b.tedarikci||""}</td>`+
+    `<td class="num">${b.dokum||""}</td><td class="num">${b.agirlik||""}</td><td>${b.durum||"STOKTA"}</td></tr>`
+  ).join("") || `<tr><td colspan="7" style="color:var(--faint);padding:16px">Stokta bobin yok.</td></tr>`;
+  const adet=state.bobinler.length, kg=state.bobinler.reduce((a,b)=>a+(b.agirlik||0),0);
+  $("bb_ozet").innerHTML=
+    `<div class="tile"><div class="n acc">${adet}</div><small>Bobin</small></div>`+
+    `<div class="tile"><div class="n">${Math.round(kg)} kg</div><small>Toplam ağırlık</small></div>`;
+}
+
+// ================== BAŞLAT ==================
+refreshLookups();
+ieSatirCiz([{},{}]);
+hatlariCiz(); onizlemeGuncelle(); durumTabsCiz(); tabloCiz(); ozetCiz();
+kCanli(); kTablo(); kOzet(); navBadge(); toleransHesapla();
+ieTablo(); ieTolinfo(); bobinTablo();
+
+// giriş ekranını hazırla; kayıtlı rol varsa otomatik gir
+$("lg_rol").innerHTML=Object.keys(ROLLER).map(r=>`<option>${r}</option>`).join(""); rolHint();
+if(state.rol && ROLLER[state.rol]) girisYap(state.rol);
+</script>
+
+</body>
+</html>
